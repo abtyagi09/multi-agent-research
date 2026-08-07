@@ -14,11 +14,11 @@ services:
   ai-project:
     host: azure.ai.project
     deployments:
-      - name: gpt-4o-mini
+      - name: gpt-4o
         model:
           format: OpenAI
-          name: gpt-4o-mini
-          version: '2024-07-18'
+          name: gpt-4o
+          version: '2024-11-20'
         sku:
           name: GlobalStandard
           capacity: 10
@@ -59,7 +59,7 @@ services:
     # Until you create that connection, set the variable directly:
     environmentVariables:
       - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
-        value: gpt-4o-mini
+        value: gpt-4o
       - name: TAVILY_API_KEY
         value: ${TAVILY_API_KEY}
     container:

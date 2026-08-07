@@ -118,7 +118,7 @@ def main() -> None:
         tools=[tavily_search],
     )
 
-    server = ResponsesHostServer(agent)
+    server = ResponsesHostServer(agent, storage_provider=None)
     server.run()
 
 

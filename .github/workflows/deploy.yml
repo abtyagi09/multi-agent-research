@@ -84,7 +84,7 @@ jobs:
 
           azd env select "${{ env.AZURE_ENV_NAME }}"
 
-          # Pass Tavily API key to the azd environment (resolved in azure.yaml)
+          # Pass secrets/config to the azd environment (resolved in azure.yaml)
           azd env set TAVILY_API_KEY "${{ secrets.TAVILY_API_KEY }}"
 
       # ------------------------------------------------------------------

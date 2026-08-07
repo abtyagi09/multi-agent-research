@@ -33,6 +33,7 @@ on:
   workflow_dispatch:          # Allow manual trigger from GitHub UI
 
 permissions:
+  id-token: write             # Required for OIDC token exchange
   contents: read
 
 env:
@@ -62,13 +63,13 @@ jobs:
         run: azd ext install microsoft.foundry
 
       # ------------------------------------------------------------------
-      # 3. Authenticate via client secret
+      # 3. Authenticate via OIDC (Workload Identity Federation)
       # ------------------------------------------------------------------
-      - name: Log in to Azure (client secret)
+      - name: Log in to Azure (OIDC / Workload Identity)
         run: |
           azd auth login \
             --client-id "${{ secrets.AZURE_CLIENT_ID }}" \
-            --client-secret "${{ secrets.AZURE_CLIENT_SECRET }}" \
+            --federated-credential-provider "github" \
             --tenant-id "${{ secrets.AZURE_TENANT_ID }}"
 
       # ------------------------------------------------------------------

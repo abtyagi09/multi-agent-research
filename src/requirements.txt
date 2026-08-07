@@ -1,0 +1,18 @@
+# Core Agent Framework packages for Azure Foundry hosted agents
+agent-framework-foundry
+agent-framework-foundry-hosting>=1.0.0a260630
+
+# Azure identity for DefaultAzureCredential
+azure-identity
+
+# HTTP requests (Tavily search tool)
+requests
+
+# Environment variable loading for local development
+python-dotenv
+
+# Pydantic for tool parameter validation
+pydantic
+
+# Enables local debugging with the Foundry Toolkit VS Code extension
+debugpy

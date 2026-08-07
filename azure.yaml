@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+requiredVersions:
+  extensions:
+    azure.ai.agents: '>=1.0.0-beta.4'
+
+name: multi-agent-research
+
+# ---------------------------------------------------------------------------
+# Azure services
+# ---------------------------------------------------------------------------
+services:
+  # Foundry project + model deployment (provisioned by `azd provision`)
+  ai-project:
+    host: azure.ai.project
+    deployments:
+      - name: gpt-4o-mini
+        model:
+          format: OpenAI
+          name: gpt-4o-mini
+          version: '2024-07-18'
+        sku:
+          name: GlobalStandard
+          capacity: 10
+
+  # Hosted agent service
+  multi-agent-research:
+    host: azure.ai.agent
+    metadata:
+      tags:
+        - Agent Framework
+        - Multi-Agent
+        - Research Workflow
+        - Responses Protocol
+    # Path to the agent source code (relative to this file)
+    project: src
+    language: python
+    codeConfiguration:
+      runtime: python_3_13
+      entryPoint: main.py
+    uses:
+      - ai-project
+    kind: hosted
+    name: multi-agent-research
+    description: >
+      A multi-agent research pipeline (Researcher → Analyst → Writer) that
+      uses Tavily web search to answer research questions and produce
+      executive-level reports.
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    # Environment variables injected at runtime.
+    # FOUNDRY_PROJECT_ENDPOINT is injected automatically by the platform.
+    # TAVILY_API_KEY should be stored in a Foundry project connection (CustomKeys)
+    # and referenced here so the secret is never hard-coded:
+    #   environmentVariables:
+    #     - name: TAVILY_API_KEY
+    #       value: ${{connections.agent-secrets.credentials.tavily_api_key}}
+    # Until you create that connection, set the variable directly:
+    environmentVariables:
+      - name: AZURE_AI_MODEL_DEPLOYMENT_NAME
+        value: ${AZURE_AI_MODEL_DEPLOYMENT_NAME}
+      - name: TAVILY_API_KEY
+        value: ${TAVILY_API_KEY}
+    container:
+      resources:
+        cpu: '0.5'
+        memory: 1Gi
+
+# ---------------------------------------------------------------------------
+# Infrastructure provider
+# ---------------------------------------------------------------------------
+infra:
+  provider: microsoft.foundry

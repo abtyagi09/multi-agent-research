@@ -1,0 +1,117 @@
+# .github/workflows/deploy.yml
+#
+# GitHub Actions workflow — Deploy Multi-Agent Research to Azure Foundry
+#
+# Triggers:
+#   - Push to `main` (automatic deployment)
+#   - Manual dispatch via GitHub UI
+#
+# Prerequisites (set in GitHub → Settings → Secrets and variables → Actions):
+#   AZURE_CLIENT_ID      — Service principal / Workload Identity app client ID
+#   AZURE_TENANT_ID      — Azure AD tenant ID
+#   AZURE_SUBSCRIPTION_ID — Azure subscription ID
+#   AZURE_ENV_NAME       — azd environment name (e.g. "multi-agent-research-dev")
+#   AZURE_LOCATION       — Azure region (e.g. "eastus2")
+#   TAVILY_API_KEY       — Tavily search API key
+#
+# Authentication uses OpenID Connect (OIDC / Workload Identity Federation).
+# No client secret is stored in GitHub.
+# Follow the setup guide in README.md → "GitHub Actions Setup" for how to
+# create the federated credential in Azure.
+
+name: Deploy Hosted Agent to Azure Foundry
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'azure.yaml'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:          # Allow manual trigger from GitHub UI
+
+permissions:
+  id-token: write             # Required for OIDC token exchange
+  contents: read
+
+env:
+  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME || 'multi-agent-research-dev' }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus2' }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  deploy:
+    name: Build & Deploy Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Checkout source code
+      # ------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # 2. Install Azure Developer CLI (azd) + Foundry extension
+      # ------------------------------------------------------------------
+      - name: Install Azure Developer CLI
+        uses: azure/setup-azd@v2
+
+      - name: Install Foundry azd extension
+        run: azd ext install microsoft.foundry
+
+      # ------------------------------------------------------------------
+      # 3. Authenticate via OIDC (no secrets stored in GitHub)
+      # ------------------------------------------------------------------
+      - name: Log in to Azure (OIDC / Workload Identity)
+        run: |
+          azd auth login \
+            --client-id "${{ secrets.AZURE_CLIENT_ID }}" \
+            --federated-credential-provider "github" \
+            --tenant-id "${{ secrets.AZURE_TENANT_ID }}"
+
+      # ------------------------------------------------------------------
+      # 4. Initialise or refresh the azd environment
+      #    azd env new <name> is idempotent — skipped if env already exists.
+      # ------------------------------------------------------------------
+      - name: Configure azd environment
+        run: |
+          azd env new "${{ env.AZURE_ENV_NAME }}" --no-prompt \
+            --subscription "${{ env.AZURE_SUBSCRIPTION_ID }}" \
+            --location "${{ env.AZURE_LOCATION }}" || true
+
+          azd env select "${{ env.AZURE_ENV_NAME }}"
+
+          # Pass Tavily API key to the azd environment (resolved in azure.yaml)
+          azd env set TAVILY_API_KEY "${{ secrets.TAVILY_API_KEY }}"
+
+      # ------------------------------------------------------------------
+      # 5. Provision Azure resources (Foundry project + model, first run only)
+      #    On subsequent runs the existing resources are reused.
+      # ------------------------------------------------------------------
+      - name: Provision Azure resources
+        run: azd provision --no-prompt
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+      # ------------------------------------------------------------------
+      # 6. Deploy the hosted agent (build image, push, create agent version)
+      # ------------------------------------------------------------------
+      - name: Deploy agent to Azure Foundry
+        run: azd deploy --no-prompt
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+      # ------------------------------------------------------------------
+      # 7. Smoke-test: invoke the deployed agent
+      # ------------------------------------------------------------------
+      - name: Smoke-test deployed agent
+        run: |
+          echo "Invoking agent with a test query…"
+          azd ai agent invoke "What is the latest news about AI agents?"
+        continue-on-error: true    # Don't fail the pipeline on test failures

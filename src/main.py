@@ -116,10 +116,9 @@ def main() -> None:
         client=client,
         instructions=AGENT_INSTRUCTIONS,
         tools=[tavily_search],
-        default_options={"include": []},
     )
 
-    server = ResponsesHostServer(agent)
+    server = ResponsesHostServer(agent, store=False)
     server.run()
 
 

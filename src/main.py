@@ -116,8 +116,6 @@ def main() -> None:
         client=client,
         instructions=AGENT_INSTRUCTIONS,
         tools=[tavily_search],
-        # Session history is managed by the Foundry hosting platform.
-        default_options={"store": False},
     )
 
     server = ResponsesHostServer(agent)
